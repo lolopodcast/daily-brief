@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CAIW 每日晨報 · Daily Brief</title>
+<title>駱駱精選晨報 · LoLo's Daily Brief</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#004030">
 <link rel="icon" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="晨報">
+<meta name="apple-mobile-web-app-title" content="駱駱晨報">
 
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
@@ -28,18 +28,18 @@
   .dark body { background:#121212; color:#e5e5e5; }
   ::selection { background:#004030; color:#fff; }
   .dark ::selection { background:#D8C3A5; color:#004030; }
-  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar { width:6px; height:6px; }
   ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:10px; }
   .dark ::-webkit-scrollbar-thumb { background:#475569; }
   @keyframes fadeInUp { from{opacity:0;transform:translateY(15px)} to{opacity:1;transform:translateY(0)} }
   .animate-fade-in { animation: fadeInUp .5s ease-out forwards; }
 
-  /* ---------- 晨報排版（套用在 marked 渲染結果上） ---------- */
+  /* ---------- 晨報排版 ---------- */
   #brief { line-height:1.85; }
   #brief > h1 { font-family:Merriweather,serif; font-weight:900; font-size:1.6rem; color:var(--green); margin:0 0 .75rem; }
   .dark #brief > h1 { color:var(--gold); }
   #brief h2 { font-family:Merriweather,serif; font-weight:900; font-size:1.25rem; color:#fff; background:var(--green);
-              padding:.55rem 1rem; border-radius:.6rem; margin:2rem 0 1rem; scroll-margin-top:5rem; }
+              padding:.55rem 1rem; border-radius:.6rem; margin:2rem 0 1rem; scroll-margin-top:6.8rem; }
   .dark #brief h2 { background:var(--gold); color:var(--green); }
   .card { background:#fff; border:1px solid var(--line); border-left:4px solid var(--green); border-radius:.8rem;
           padding:1rem 1.15rem; margin:0 0 .9rem; }
@@ -53,28 +53,64 @@
   #brief blockquote { border-left:3px solid var(--gold); background:rgba(216,195,165,.12); padding:.6rem .9rem;
                       border-radius:.4rem; margin:.8rem 0; font-size:.92rem; }
   #brief table { width:100%; border-collapse:collapse; font-size:.85rem; margin:.8rem 0; }
-  #brief th { background:var(--green); color:var(--gold); padding:.5rem .6rem; text-align:left; }
+  #brief th { background:var(--green); color:var(--gold); padding:.5rem .6rem; text-align:left; white-space:nowrap; }
   #brief td { border-bottom:1px solid var(--line); padding:.45rem .6rem; }
   .dark #brief td { border-color:#2a3d35; }
+  .tbl-wrap { overflow-x:auto; }
   #brief hr { border:0; border-top:1px dashed var(--line); margin:1.5rem 0; }
   #brief strong { color:var(--green); }
   .dark #brief strong { color:var(--gold); }
-  #brief em, #brief > p:last-child { font-size:.85rem; opacity:.75; }
 
-  .badge { display:inline-block; padding:.1rem .55rem; border-radius:999px; font-size:.72rem; font-weight:700; vertical-align:.08rem; margin:0 .15rem; }
+  .badge { display:inline-block; padding:.1rem .55rem; border-radius:999px; font-size:.72rem; font-weight:700; vertical-align:.08rem; margin:0 .18rem 0 0; white-space:nowrap; }
   .badge-verify { background:#f5e3c8; color:#8a5a00; border:1px solid #e2b96f; }
   .dark .badge-verify { background:#3d3020; color:#e2b96f; border-color:#8a5a00; }
   .badge-update { background:#e2f2e8; color:#1d5c38; border:1px solid #7fc39a; }
   .dark .badge-update { background:#15301f; color:#7fc39a; border-color:#1d5c38; }
   .badge-new { background:#e8eef9; color:#274b8f; border:1px solid #8aa5d6; }
   .dark .badge-new { background:#182338; color:#8aa5d6; border-color:#274b8f; }
+  .badge-domain { background:rgba(0,64,48,.08); color:var(--green); border:1px solid rgba(0,64,48,.25); }
+  .dark .badge-domain { background:rgba(216,195,165,.10); color:var(--gold); border-color:rgba(216,195,165,.35); }
 
   .disclaimer { border:1.5px solid var(--gold); background:rgba(216,195,165,.15); border-radius:.7rem; padding:.8rem 1rem;
                 font-size:.85rem; margin:.6rem 0 1rem; }
-  .chip { padding:.3rem .8rem; border-radius:999px; border:1px solid var(--line); font-size:.8rem; white-space:nowrap; cursor:pointer; }
+
+  /* 摺疊區（產製說明、決策行動） */
+  details.fold { border:1px solid var(--line); border-radius:.7rem; margin:.8rem 0 1rem; background:rgba(216,195,165,.06); }
+  .dark details.fold { border-color:#2a3d35; }
+  details.fold > summary { cursor:pointer; padding:.65rem 1rem; font-weight:700; font-size:.9rem; color:var(--green);
+                           list-style:none; display:flex; align-items:center; gap:.5rem; user-select:none; }
+  .dark details.fold > summary { color:var(--gold); }
+  details.fold > summary::-webkit-details-marker { display:none; }
+  details.fold > summary::before { content:'▸'; transition:transform .2s; }
+  details.fold[open] > summary::before { transform:rotate(90deg); }
+  details.fold > .fold-body { padding:0 1rem .8rem; }
+  details.fold .disclaimer { margin-top:.2rem; }
+
+  /* 主題滑軸 */
+  #topicNav { position:fixed; top:3.5rem; left:0; right:0; z-index:40; border-bottom:1px solid var(--line); }
+  .dark #topicNav { border-color:#2a3d35; }
+  #topicNav .rail-outer { position:relative; max-width:48rem; margin:0 auto; }
+  #topicNav .rail { display:flex; gap:.5rem; overflow-x:auto; padding:.5rem 1.6rem; scrollbar-width:none; scroll-behavior:smooth; }
+  #topicNav .rail::-webkit-scrollbar { display:none; }
+  /* 左右邊緣漸層＋箭頭：提示還有更多主題可滑 */
+  #topicNav .edge { position:absolute; top:0; bottom:0; width:2rem; pointer-events:none; display:flex; align-items:center;
+                    font-size:.9rem; color:var(--green); opacity:.75; z-index:2; }
+  .dark #topicNav .edge { color:var(--gold); }
+  #topicNav .edge-l { left:0; justify-content:flex-start; padding-left:.15rem;
+    background:linear-gradient(to right, #f4f4f4 35%, transparent); }
+  #topicNav .edge-r { right:0; justify-content:flex-end; padding-right:.15rem;
+    background:linear-gradient(to left, #f4f4f4 35%, transparent); }
+  .dark #topicNav .edge-l { background:linear-gradient(to right, #121212 35%, transparent); }
+  .dark #topicNav .edge-r { background:linear-gradient(to left, #121212 35%, transparent); }
+  #topicNav .edge.hide { display:none; }
+
+  .chip { padding:.3rem .8rem; border-radius:999px; border:1.5px solid var(--line); font-size:.8rem; white-space:nowrap;
+          cursor:pointer; background:#fff; transition:all .15s; }
+  .dark .chip { background:#1a2520; border-color:#2a3d35; }
   .chip:hover { border-color:var(--green); }
-  .dark .chip { border-color:#2a3d35; }
   .dark .chip:hover { border-color:var(--gold); }
+  .chip.active { background:var(--green); color:#fff; border-color:var(--green); font-weight:700; }
+  .dark .chip.active { background:var(--gold); color:var(--green); border-color:var(--gold); }
 </style>
 </head>
 <body class="font-sans text-slate-800 dark:text-slate-200">
@@ -93,8 +129,8 @@
 <header class="fixed top-0 left-0 right-0 h-14 bg-[#004030] text-white z-50 shadow-lg border-b border-[#D8C3A5]/30">
   <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
     <div class="flex items-center gap-2 min-w-0">
-      <span class="font-serif font-black text-[#D8C3A5] tracking-widest">CAIW</span>
-      <span class="font-serif font-bold text-sm truncate">每日晨報 · Daily Brief</span>
+      <span class="font-serif font-black text-[#D8C3A5] tracking-widest shrink-0">駱駱</span>
+      <span class="font-serif font-bold text-sm truncate">精選晨報 · LoLo's Daily Brief</span>
     </div>
     <div class="flex items-center gap-2 shrink-0">
       <select id="datePick" class="bg-white/10 text-white text-sm rounded-lg px-2 py-1.5 border border-white/20"></select>
@@ -103,24 +139,28 @@
   </div>
 </header>
 
-<nav id="topicNav" class="fixed top-14 left-0 right-0 z-40 bg-[#f4f4f4]/95 dark:bg-[#121212]/95 backdrop-blur border-b border-[#E3D9C5] dark:border-[#2a3d35]">
-  <div class="max-w-3xl mx-auto px-4 py-2 flex gap-2 overflow-x-auto"></div>
+<nav id="topicNav" class="bg-[#f4f4f4] dark:bg-[#121212]">
+  <div class="rail-outer">
+    <div class="edge edge-l hide">‹</div>
+    <div class="rail"></div>
+    <div class="edge edge-r">›</div>
+  </div>
 </nav>
 
-<main class="max-w-3xl mx-auto px-4 pb-16" style="padding-top:7rem">
+<main class="max-w-3xl mx-auto px-4 pb-16" style="padding-top:7.2rem">
   <div id="brief" class="animate-fade-in"><p class="opacity-60 py-10 text-center">載入中…</p></div>
 </main>
 
 <footer class="bg-[#004030] text-[#D8C3A5] py-3">
   <div class="max-w-3xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2 text-xs">
-    <span class="opacity-70">CAIW Daily Brief · 公開資訊彙整，非投資或決策建議</span>
+    <span class="opacity-70">駱駱精選晨報 · 公開資訊彙整，非投資或決策建議</span>
     <span>Architect: <a class="underline hover:text-white" target="_blank" rel="noopener" href="https://www.ibs.ncnu.edu.tw/index.php/faculty/tenured-professor/299-smlo">Prof. Shihmin Lo</a></span>
   </div>
 </footer>
 
 <script>
 (function(){
-  var state = { dark: localStorage.getItem('brief_theme') !== 'light', manifest: [] };
+  var state = { dark: localStorage.getItem('brief_theme') !== 'light', sections: [] };
   function applyTheme(){ document.documentElement.classList.toggle('dark', state.dark); }
   applyTheme();
   document.getElementById('themeBtn').addEventListener('click', function(){
@@ -129,52 +169,158 @@
 
   function badge(cls, text){ return '<span class="badge ' + cls + '">' + text + '</span>'; }
 
+  // 〔…〕標籤 → 徽章（統一規則：新舊主題一視同仁）
+  function tagBadges(html){
+    return html
+      .replace(/〔對昨日的實質更新〕/g, badge('badge-update','較昨日更新'))
+      .replace(/〔巡檢基線〕/g, badge('badge-new','基線'))
+      .replace(/〔昨日待查核項目的進度追蹤〕/g, badge('badge-new','追蹤'))
+      .replace(/〔新增[．·]?([^〕]*)〕/g, function(m, extra){
+        var b = badge('badge-new','新增');
+        if (extra && extra.trim()) b += badge('badge-new', extra.trim().slice(0,10));
+        return b;
+      })
+      .replace(/〔([^〕]{1,12})〕/g, function(m, inner){ return badge('badge-new', inner); });
+  }
+
+  // （空）（海）（陸＋海）… → 領域徽章
+  function domainBadges(html){
+    return html.replace(/（([陸海空][陸海空＋+、\/／\s]*)）/g, function(m, inner){
+      var map = { '空':'✈️ 空', '海':'⚓ 海', '陸':'🚙 陸' };
+      var out = '';
+      inner.replace(/[陸海空]/g, function(ch){ out += badge('badge-domain', map[ch]); return ch; });
+      return ' ' + out;
+    });
+  }
+
   function enhance(container){
-    // 1) 把每個 h3 小節包成卡片
+    // 0) 標題品牌化（相容舊晨報標題）
+    var h1 = container.querySelector('h1');
+    if (h1) h1.textContent = h1.textContent.replace(/每日主題晨報|駱駱精選晨報/, '駱駱精選晨報');
+
+    // 1) 產製說明（h1 與第一個 h2 之間的中繼資料）→ 摺疊
+    if (h1) {
+      var meta = [], n = h1.nextElementSibling;
+      while (n && n.tagName !== 'H2') { var nx = n.nextElementSibling; meta.push(n); n = nx; }
+      if (meta.length) {
+        var det = document.createElement('details'); det.className = 'fold';
+        det.innerHTML = '<summary>ⓘ 本期產製說明（來源、巡檢與比對方式）</summary>';
+        var body = document.createElement('div'); body.className = 'fold-body';
+        meta.forEach(function(el){ if (el.tagName !== 'HR') body.appendChild(el); else el.remove(); });
+        det.appendChild(body);
+        h1.parentNode.insertBefore(det, h1.nextSibling);
+      }
+    }
+
+    // 2) 移除主題節下的突兀節註（如「（本主題為今日新增…視為新增）」）——格式一致性
+    Array.prototype.slice.call(container.querySelectorAll('p')).forEach(function(p){
+      var t = p.textContent.trim();
+      if (/^（.*(本主題|無歷史|視為新增).*）$/.test(t)) p.remove();
+    });
+
+    // 3) 把每個 h3 小節包成卡片
     var nodes = Array.prototype.slice.call(container.children);
     var frag = document.createDocumentFragment(), card = null;
     nodes.forEach(function(n){
       if (n.tagName === 'H3') { card = document.createElement('div'); card.className = 'card'; frag.appendChild(card); card.appendChild(n); }
-      else if (card && !/^(H1|H2|HR)$/.test(n.tagName)) { card.appendChild(n); }
-      else { card = (n.tagName === 'H2' || n.tagName === 'HR') ? null : card; frag.appendChild(n); }
+      else if (card && !/^(H1|H2|HR|DETAILS)$/.test(n.tagName)) { card.appendChild(n); }
+      else { if (/^(H1|H2|HR|DETAILS)$/.test(n.tagName)) card = null; frag.appendChild(n); }
     });
     container.innerHTML = ''; container.appendChild(frag);
 
-    // 2) 徽章：待查核／實質更新／新增
-    container.querySelectorAll('.card h3, .card li, .card p, blockquote').forEach(function(el){
-      el.innerHTML = el.innerHTML
-        .replace(/〔對昨日的實質更新〕/g, badge('badge-update','較昨日更新'))
-        .replace(/〔新增[^〕]*〕/g, badge('badge-new','新增'))
-        .replace(/〔巡檢基線〕|〔昨日待查核項目的進度追蹤〕/g, badge('badge-new','追蹤'))
-        .replace(/待查核（[^）]*）/g, function(m){ return badge('badge-verify','待查核') + m.replace(/^待查核/,''); })
-        .replace(/(^|[>：:\s])待查核(?![」者])/g, function(m,p1){ return p1 + badge('badge-verify','待查核'); });
+    // 4) 徽章（標籤、領域、待查核）
+    container.querySelectorAll('.card h3, .card li, .card p, blockquote, h2 + p').forEach(function(el){
+      var h = tagBadges(el.innerHTML);
+      if (el.tagName === 'H3') h = domainBadges(h);
+      h = h.replace(/待查核（([^）]*)）/g, function(m, inner){ return badge('badge-verify','待查核') + '（' + inner + '）'; })
+           .replace(/(^|[>：:\s])待查核(?![」者清單])/g, function(m, p1){ return p1 + badge('badge-verify','待查核'); });
+      el.innerHTML = h;
     });
 
-    // 3) 決策建議節加註提醒（依使用者決策 (a)）
-    container.querySelectorAll('h2').forEach(function(h){
-      if (h.textContent.indexOf('建議決策行動') !== -1) {
-        var d = document.createElement('div');
-        d.className = 'disclaimer';
-        d.innerHTML = '⚠️ <strong>提醒</strong>：本節為 AI 依公開資訊彙整之研判參考，反映特定視角與產出時點，<strong>不構成投資、法律或決策建議</strong>；標記「待查核」之內容尚未經一手來源確認，引用前請自行查證。';
-        h.parentNode.insertBefore(d, h.nextSibling);
-      }
-    });
-
-    // 4) 主題快捷列
-    var nav = document.querySelector('#topicNav div'); nav.innerHTML = '';
-    container.querySelectorAll('h2').forEach(function(h, i){
+    // 5) 主題快捷列（先建 chips，決策節之後才摺疊）
+    var rail = document.querySelector('#topicNav .rail'); rail.innerHTML = '';
+    state.sections = [];
+    var h2s = Array.prototype.slice.call(container.querySelectorAll('h2'));
+    h2s.forEach(function(h, i){
       h.id = 'sec' + i;
       var c = document.createElement('button');
       c.className = 'chip';
-      c.textContent = h.textContent.replace(/^主題[一二三四五六七八九十]+：/, '').slice(0, 14);
-      c.addEventListener('click', function(){ document.getElementById('sec' + i).scrollIntoView({behavior:'smooth'}); });
-      nav.appendChild(c);
+      c.textContent = h.textContent.replace(/^主題[一二三四五六七八九十]+：/, '').replace(/（[^）]*）/g, '').slice(0, 12);
+      c.addEventListener('click', function(){
+        var target = document.getElementById('sec' + i);
+        if (target.closest('details')) target.closest('details').open = true;
+        target.scrollIntoView({behavior:'smooth'});
+        setActive(i, true);
+      });
+      rail.appendChild(c);
+      state.sections.push({ h: h, chip: c });
     });
 
-    // 5) 外部連結一律開新分頁
+    // 6) 建議決策行動 → 預設摺疊（研究者筆記），內含提醒框
+    h2s.forEach(function(h){
+      if (h.textContent.indexOf('建議決策行動') !== -1) {
+        var det = document.createElement('details'); det.className = 'fold';
+        det.innerHTML = '<summary>📌 建議決策行動（研究者筆記，預設收合——一般讀者可略過）</summary>';
+        var body = document.createElement('div'); body.className = 'fold-body';
+        var d = document.createElement('div'); d.className = 'disclaimer';
+        d.innerHTML = '⚠️ <strong>提醒</strong>：本節為 AI 依公開資訊彙整之研判參考，反映特定視角與產出時點，<strong>不構成投資、法律或決策建議</strong>；標記「待查核」之內容尚未經一手來源確認，引用前請自行查證。';
+        body.appendChild(d);
+        var n = h.nextElementSibling;
+        while (n && n.tagName !== 'H2') { var nx = n.nextElementSibling; body.appendChild(n); n = nx; }
+        h.parentNode.insertBefore(det, h);
+        det.appendChild(h);           // h2 進入摺疊內（chips 的捲動目標仍有效）
+        h.style.marginTop = '0.4rem';
+        det.appendChild(body);
+      }
+    });
+
+    // 7) 表格加橫向捲動容器
+    container.querySelectorAll('table').forEach(function(t){
+      var w = document.createElement('div'); w.className = 'tbl-wrap';
+      t.parentNode.insertBefore(w, t); w.appendChild(t);
+    });
+
+    // 8) 外部連結開新分頁
     container.querySelectorAll('a[href^="http"]').forEach(function(a){ a.target = '_blank'; a.rel = 'noopener noreferrer'; });
+
+    updateEdges(); setActive(0, false);
   }
 
+  // ---------- 滑軸：active 高亮 + 置中 + 邊緣提示 ----------
+  function setActive(idx, centerIt){
+    state.sections.forEach(function(s, i){ s.chip.classList.toggle('active', i === idx); });
+    var s = state.sections[idx];
+    if (s) s.chip.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+    updateEdges();
+  }
+  function updateEdges(){
+    var rail = document.querySelector('#topicNav .rail');
+    var l = document.querySelector('#topicNav .edge-l'), r = document.querySelector('#topicNav .edge-r');
+    if (!rail || !l || !r) return;
+    l.classList.toggle('hide', rail.scrollLeft <= 4);
+    r.classList.toggle('hide', rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 4);
+  }
+  document.querySelector('#topicNav .rail').addEventListener('scroll', updateEdges, {passive:true});
+
+  // 頁面上下捲動時：目前主題的 chip 跟著高亮並置中（scrollspy）
+  var ticking = false;
+  window.addEventListener('scroll', function(){
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){
+      ticking = false;
+      if (!state.sections.length) return;
+      var mark = 120, cur = 0;
+      state.sections.forEach(function(s, i){
+        var el = s.h.closest('details') || s.h;
+        if (el.getBoundingClientRect().top <= mark) cur = i;
+      });
+      var active = state.sections.findIndex(function(s){ return s.chip.classList.contains('active'); });
+      if (cur !== active) setActive(cur, true);
+    });
+  }, {passive:true});
+
+  // ---------- 載入 ----------
   function loadBrief(file){
     var el = document.getElementById('brief');
     el.innerHTML = '<p class="opacity-60 py-10 text-center">載入中…</p>';
@@ -192,18 +338,20 @@
   }
 
   fetch('briefs/manifest.json', {cache:'no-cache'}).then(function(r){ return r.json(); }).then(function(m){
-    state.manifest = m.briefs || [];
+    var briefs = m.briefs || [];
     var sel = document.getElementById('datePick');
-    state.manifest.forEach(function(b, i){
+    briefs.forEach(function(b, i){
       var o = document.createElement('option'); o.value = b.file; o.textContent = b.date + (i === 0 ? '（最新）' : '');
       sel.appendChild(o);
     });
     sel.addEventListener('change', function(){ loadBrief(sel.value); });
-    if (state.manifest.length) loadBrief(state.manifest[0].file);
+    if (briefs.length) loadBrief(briefs[0].file);
     else document.getElementById('brief').innerHTML = '<p class="py-10 text-center opacity-60">尚無晨報。</p>';
   }).catch(function(){
     document.getElementById('brief').innerHTML = '<p class="py-10 text-center">無法載入晨報清單。</p>';
   });
+
+  window.addEventListener('resize', updateEdges);
 
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });

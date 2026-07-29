@@ -1,6 +1,6 @@
 {
-  "name": "CAIW 每日晨報 Daily Brief",
-  "short_name": "晨報",
+  "name": "駱駱精選晨報 LoLo's Daily Brief",
+  "short_name": "駱駱晨報",
   "description": "AI-curated daily topic brief — unmanned vehicles, agentic AI, physical AI, smart manufacturing, EV/AV",
   "id": "/daily-brief/",
   "start_url": "./index.html",

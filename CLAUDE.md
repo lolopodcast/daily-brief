@@ -10,7 +10,7 @@
 
 ## 快取規則（與教材站不同！）
 
-`sw.js` 的 `CACHE_NAME` 目前是 **`brief-shell-v1`**。晨報內容（`briefs/` 底下）走 **network-first**，**每日新增內容不需要升版**；只有改動外殼（`index.html`、`manifest.json`、`icons/`、`sw.js` 本身）才要把版本號 +1。
+`sw.js` 的 `CACHE_NAME` 目前是 **`brief-shell-v2`**（2026-07-29 品牌改名「駱駱精選晨報」＋閱讀器 UX 改版）。晨報內容（`briefs/` 底下）走 **network-first**，**每日新增內容不需要升版**；只有改動外殼（`index.html`、`manifest.json`、`icons/`、`sw.js` 本身）才要把版本號 +1。
 
 ## 語言鐵則
 
