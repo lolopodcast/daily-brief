@@ -111,6 +111,9 @@
   .dark .chip:hover { border-color:var(--gold); }
   .chip.active { background:var(--green); color:#fff; border-color:var(--green); font-weight:700; }
   .dark .chip.active { background:var(--gold); color:var(--green); border-color:var(--gold); }
+
+  /* 防禦：僅 UI 裝飾禁選取；正文（#brief）保持可反白、可複製 */
+  header, footer, button, select, .chip { -webkit-user-select:none; user-select:none; }
 </style>
 </head>
 <body class="font-sans text-slate-800 dark:text-slate-200">
@@ -123,6 +126,38 @@
     return;
   }
   if (window.self !== window.top) { try { window.top.location.href = window.self.location.href; } catch(e) {} }
+})();
+// 智慧型前端防禦（防君子、護閱讀）：文字可選可複製、Ctrl+P/S 開放；
+// 圖片/空白處右鍵與開發者工具快捷鍵 → 優雅版權提示
+(function(){
+  var toastTimer = null;
+  function showToast(msg){
+    var el = document.getElementById('_copyright_toast');
+    if (el) el.remove();
+    el = document.createElement('div');
+    el.id = '_copyright_toast';
+    el.textContent = msg || '© Intellectual Property of Prof. Shihmin Lo';
+    el.style.cssText = 'position:fixed;left:50%;bottom:32px;transform:translateX(-50%);background:#004030;color:#D8C3A5;padding:12px 24px;border-radius:10px;font-size:13px;font-family:Inter,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.2);z-index:9999;pointer-events:none;';
+    document.body.appendChild(el);
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.remove(); }, 2200);
+  }
+  document.addEventListener('contextmenu', function(e){
+    var selection = window.getSelection().toString().trim();
+    if (selection.length > 0) return true;   // 有反白 → 允許右鍵（查字典/複製筆記）
+    var isImage = e.target.tagName === 'IMG' || e.target.closest('svg');
+    e.preventDefault();
+    showToast(isImage ? '© Image protected · Prof. Shihmin Lo' : undefined);
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'F12') { e.preventDefault(); showToast(); return; }
+    if (e.ctrlKey && e.key && e.key.toLowerCase() === 'u') { e.preventDefault(); showToast(); return; }
+    if (e.ctrlKey && e.shiftKey && ['i','j','c'].indexOf((e.key||'').toLowerCase()) !== -1) { e.preventDefault(); showToast(); return; }
+    // Ctrl+P（列印）與 Ctrl+S（存檔）維持開放——晨報本就歡迎離線保存
+  });
+  document.addEventListener('dragstart', function(e){
+    if (e.target.tagName === 'IMG' || e.target.closest('svg')) e.preventDefault();
+  });
 })();
 </script>
 
