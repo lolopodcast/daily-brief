@@ -303,11 +303,12 @@
   document.querySelector('#topicNav .rail').addEventListener('scroll', updateEdges, {passive:true});
 
   // 頁面上下捲動時：目前主題的 chip 跟著高亮並置中（scrollspy）
+  // 用 setTimeout 節流而非 requestAnimationFrame：rAF 在分頁不可見時會凍結
   var ticking = false;
   window.addEventListener('scroll', function(){
     if (ticking) return;
     ticking = true;
-    requestAnimationFrame(function(){
+    setTimeout(function(){
       ticking = false;
       if (!state.sections.length) return;
       var mark = 120, cur = 0;
@@ -317,7 +318,7 @@
       });
       var active = state.sections.findIndex(function(s){ return s.chip.classList.contains('active'); });
       if (cur !== active) setActive(cur, true);
-    });
+    }, 100);
   }, {passive:true});
 
   // ---------- 載入 ----------
