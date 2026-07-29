@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAIW 每日晨報 · Daily Brief</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#004030">
+<link rel="icon" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="晨報">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;0,900;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: { extend: { fontFamily: { sans: ['Inter','sans-serif'], serif: ['Merriweather','serif'] } } }
+  }
+</script>
+<style>
+  :root { --green:#004030; --gold:#D8C3A5; --line:#E3D9C5; --ok:#2f7d4f; --warn:#b3261e; }
+  html, body { background:#f4f4f4; }
+  .dark body { background:#121212; color:#e5e5e5; }
+  ::selection { background:#004030; color:#fff; }
+  .dark ::selection { background:#D8C3A5; color:#004030; }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:10px; }
+  .dark ::-webkit-scrollbar-thumb { background:#475569; }
+  @keyframes fadeInUp { from{opacity:0;transform:translateY(15px)} to{opacity:1;transform:translateY(0)} }
+  .animate-fade-in { animation: fadeInUp .5s ease-out forwards; }
+
+  /* ---------- 晨報排版（套用在 marked 渲染結果上） ---------- */
+  #brief { line-height:1.85; }
+  #brief > h1 { font-family:Merriweather,serif; font-weight:900; font-size:1.6rem; color:var(--green); margin:0 0 .75rem; }
+  .dark #brief > h1 { color:var(--gold); }
+  #brief h2 { font-family:Merriweather,serif; font-weight:900; font-size:1.25rem; color:#fff; background:var(--green);
+              padding:.55rem 1rem; border-radius:.6rem; margin:2rem 0 1rem; scroll-margin-top:5rem; }
+  .dark #brief h2 { background:var(--gold); color:var(--green); }
+  .card { background:#fff; border:1px solid var(--line); border-left:4px solid var(--green); border-radius:.8rem;
+          padding:1rem 1.15rem; margin:0 0 .9rem; }
+  .dark .card { background:#1a2520; border-color:#2a3d35; border-left-color:var(--gold); }
+  .card h3 { font-family:Merriweather,serif; font-weight:700; font-size:1.02rem; color:var(--green); margin:0 0 .5rem; }
+  .dark .card h3 { color:var(--gold); }
+  #brief ul { padding-left:1.1rem; list-style:disc; margin:.4rem 0; }
+  #brief li { margin:.25rem 0; font-size:.92rem; }
+  #brief a { color:var(--green); text-decoration:underline; text-underline-offset:2px; word-break:break-all; }
+  .dark #brief a { color:var(--gold); }
+  #brief blockquote { border-left:3px solid var(--gold); background:rgba(216,195,165,.12); padding:.6rem .9rem;
+                      border-radius:.4rem; margin:.8rem 0; font-size:.92rem; }
+  #brief table { width:100%; border-collapse:collapse; font-size:.85rem; margin:.8rem 0; }
+  #brief th { background:var(--green); color:var(--gold); padding:.5rem .6rem; text-align:left; }
+  #brief td { border-bottom:1px solid var(--line); padding:.45rem .6rem; }
+  .dark #brief td { border-color:#2a3d35; }
+  #brief hr { border:0; border-top:1px dashed var(--line); margin:1.5rem 0; }
+  #brief strong { color:var(--green); }
+  .dark #brief strong { color:var(--gold); }
+  #brief em, #brief > p:last-child { font-size:.85rem; opacity:.75; }
+
+  .badge { display:inline-block; padding:.1rem .55rem; border-radius:999px; font-size:.72rem; font-weight:700; vertical-align:.08rem; margin:0 .15rem; }
+  .badge-verify { background:#f5e3c8; color:#8a5a00; border:1px solid #e2b96f; }
+  .dark .badge-verify { background:#3d3020; color:#e2b96f; border-color:#8a5a00; }
+  .badge-update { background:#e2f2e8; color:#1d5c38; border:1px solid #7fc39a; }
+  .dark .badge-update { background:#15301f; color:#7fc39a; border-color:#1d5c38; }
+  .badge-new { background:#e8eef9; color:#274b8f; border:1px solid #8aa5d6; }
+  .dark .badge-new { background:#182338; color:#8aa5d6; border-color:#274b8f; }
+
+  .disclaimer { border:1.5px solid var(--gold); background:rgba(216,195,165,.15); border-radius:.7rem; padding:.8rem 1rem;
+                font-size:.85rem; margin:.6rem 0 1rem; }
+  .chip { padding:.3rem .8rem; border-radius:999px; border:1px solid var(--line); font-size:.8rem; white-space:nowrap; cursor:pointer; }
+  .chip:hover { border-color:var(--green); }
+  .dark .chip { border-color:#2a3d35; }
+  .dark .chip:hover { border-color:var(--gold); }
+</style>
+</head>
+<body class="font-sans text-slate-800 dark:text-slate-200">
+<script>
+(function(){
+  var ALLOWED = ['localhost','127.0.0.1','lolopodcast.github.io'];
+  var isFile = location.protocol === 'file:';
+  if (!isFile && !ALLOWED.some(function(d){ return location.hostname === d || location.hostname.endsWith('.'+d); })) {
+    document.body.innerHTML = '<div style="text-align:center;padding:60px;font-family:sans-serif"><h1>Access Denied</h1></div>';
+    return;
+  }
+  if (window.self !== window.top) { try { window.top.location.href = window.self.location.href; } catch(e) {} }
+})();
+</script>
+
+<header class="fixed top-0 left-0 right-0 h-14 bg-[#004030] text-white z-50 shadow-lg border-b border-[#D8C3A5]/30">
+  <div class="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-2 min-w-0">
+      <span class="font-serif font-black text-[#D8C3A5] tracking-widest">CAIW</span>
+      <span class="font-serif font-bold text-sm truncate">每日晨報 · Daily Brief</span>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <select id="datePick" class="bg-white/10 text-white text-sm rounded-lg px-2 py-1.5 border border-white/20"></select>
+      <button id="themeBtn" class="p-2 hover:bg-white/10 rounded-lg" title="切換深淺色">◐</button>
+    </div>
+  </div>
+</header>
+
+<nav id="topicNav" class="fixed top-14 left-0 right-0 z-40 bg-[#f4f4f4]/95 dark:bg-[#121212]/95 backdrop-blur border-b border-[#E3D9C5] dark:border-[#2a3d35]">
+  <div class="max-w-3xl mx-auto px-4 py-2 flex gap-2 overflow-x-auto"></div>
+</nav>
+
+<main class="max-w-3xl mx-auto px-4 pb-16" style="padding-top:7rem">
+  <div id="brief" class="animate-fade-in"><p class="opacity-60 py-10 text-center">載入中…</p></div>
+</main>
+
+<footer class="bg-[#004030] text-[#D8C3A5] py-3">
+  <div class="max-w-3xl mx-auto px-4 flex flex-wrap items-center justify-between gap-2 text-xs">
+    <span class="opacity-70">CAIW Daily Brief · 公開資訊彙整，非投資或決策建議</span>
+    <span>Architect: <a class="underline hover:text-white" target="_blank" rel="noopener" href="https://www.ibs.ncnu.edu.tw/index.php/faculty/tenured-professor/299-smlo">Prof. Shihmin Lo</a></span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var state = { dark: localStorage.getItem('brief_theme') !== 'light', manifest: [] };
+  function applyTheme(){ document.documentElement.classList.toggle('dark', state.dark); }
+  applyTheme();
+  document.getElementById('themeBtn').addEventListener('click', function(){
+    state.dark = !state.dark; localStorage.setItem('brief_theme', state.dark ? 'dark' : 'light'); applyTheme();
+  });
+
+  function badge(cls, text){ return '<span class="badge ' + cls + '">' + text + '</span>'; }
+
+  function enhance(container){
+    // 1) 把每個 h3 小節包成卡片
+    var nodes = Array.prototype.slice.call(container.children);
+    var frag = document.createDocumentFragment(), card = null;
+    nodes.forEach(function(n){
+      if (n.tagName === 'H3') { card = document.createElement('div'); card.className = 'card'; frag.appendChild(card); card.appendChild(n); }
+      else if (card && !/^(H1|H2|HR)$/.test(n.tagName)) { card.appendChild(n); }
+      else { card = (n.tagName === 'H2' || n.tagName === 'HR') ? null : card; frag.appendChild(n); }
+    });
+    container.innerHTML = ''; container.appendChild(frag);
+
+    // 2) 徽章：待查核／實質更新／新增
+    container.querySelectorAll('.card h3, .card li, .card p, blockquote').forEach(function(el){
+      el.innerHTML = el.innerHTML
+        .replace(/〔對昨日的實質更新〕/g, badge('badge-update','較昨日更新'))
+        .replace(/〔新增[^〕]*〕/g, badge('badge-new','新增'))
+        .replace(/〔巡檢基線〕|〔昨日待查核項目的進度追蹤〕/g, badge('badge-new','追蹤'))
+        .replace(/待查核（[^）]*）/g, function(m){ return badge('badge-verify','待查核') + m.replace(/^待查核/,''); })
+        .replace(/(^|[>：:\s])待查核(?![」者])/g, function(m,p1){ return p1 + badge('badge-verify','待查核'); });
+    });
+
+    // 3) 決策建議節加註提醒（依使用者決策 (a)）
+    container.querySelectorAll('h2').forEach(function(h){
+      if (h.textContent.indexOf('建議決策行動') !== -1) {
+        var d = document.createElement('div');
+        d.className = 'disclaimer';
+        d.innerHTML = '⚠️ <strong>提醒</strong>：本節為 AI 依公開資訊彙整之研判參考，反映特定視角與產出時點，<strong>不構成投資、法律或決策建議</strong>；標記「待查核」之內容尚未經一手來源確認，引用前請自行查證。';
+        h.parentNode.insertBefore(d, h.nextSibling);
+      }
+    });
+
+    // 4) 主題快捷列
+    var nav = document.querySelector('#topicNav div'); nav.innerHTML = '';
+    container.querySelectorAll('h2').forEach(function(h, i){
+      h.id = 'sec' + i;
+      var c = document.createElement('button');
+      c.className = 'chip';
+      c.textContent = h.textContent.replace(/^主題[一二三四五六七八九十]+：/, '').slice(0, 14);
+      c.addEventListener('click', function(){ document.getElementById('sec' + i).scrollIntoView({behavior:'smooth'}); });
+      nav.appendChild(c);
+    });
+
+    // 5) 外部連結一律開新分頁
+    container.querySelectorAll('a[href^="http"]').forEach(function(a){ a.target = '_blank'; a.rel = 'noopener noreferrer'; });
+  }
+
+  function loadBrief(file){
+    var el = document.getElementById('brief');
+    el.innerHTML = '<p class="opacity-60 py-10 text-center">載入中…</p>';
+    fetch('briefs/' + file, {cache:'no-cache'}).then(function(r){
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.text();
+    }).then(function(md){
+      el.innerHTML = DOMPurify.sanitize(marked.parse(md));
+      enhance(el);
+      el.classList.remove('animate-fade-in'); void el.offsetWidth; el.classList.add('animate-fade-in');
+      window.scrollTo({top:0});
+    }).catch(function(e){
+      el.innerHTML = '<p class="py-10 text-center">載入失敗（' + e.message + '）。離線時僅能閱讀造訪過的晨報。</p>';
+    });
+  }
+
+  fetch('briefs/manifest.json', {cache:'no-cache'}).then(function(r){ return r.json(); }).then(function(m){
+    state.manifest = m.briefs || [];
+    var sel = document.getElementById('datePick');
+    state.manifest.forEach(function(b, i){
+      var o = document.createElement('option'); o.value = b.file; o.textContent = b.date + (i === 0 ? '（最新）' : '');
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', function(){ loadBrief(sel.value); });
+    if (state.manifest.length) loadBrief(state.manifest[0].file);
+    else document.getElementById('brief').innerHTML = '<p class="py-10 text-center opacity-60">尚無晨報。</p>';
+  }).catch(function(){
+    document.getElementById('brief').innerHTML = '<p class="py-10 text-center">無法載入晨報清單。</p>';
+  });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+  }
+})();
+</script>
+</body>
+</html>

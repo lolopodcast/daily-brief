@@ -1,0 +1,19 @@
+{
+  "name": "CAIW 每日晨報 Daily Brief",
+  "short_name": "晨報",
+  "description": "AI-curated daily topic brief — unmanned vehicles, agentic AI, physical AI, smart manufacturing, EV/AV",
+  "id": "/daily-brief/",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#121212",
+  "theme_color": "#004030",
+  "lang": "zh-Hant",
+  "dir": "ltr",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
