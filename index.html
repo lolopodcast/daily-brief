@@ -109,9 +109,16 @@
   .dark .tts-btn:hover { background:rgba(216,195,165,.14); border-color:var(--gold); }
   .tts-btn[aria-pressed="true"] { background:var(--green); color:#fff; border-color:var(--green); }
   .dark .tts-btn[aria-pressed="true"] { background:var(--gold); color:#04231b; border-color:var(--gold); }
-  /* 正在朗讀的段落 */
-  #brief .tts-now { background:rgba(0,64,48,.09); border-radius:.25em; box-shadow:0 0 0 .28em rgba(0,64,48,.09); }
-  .dark #brief .tts-now { background:rgba(216,195,165,.14); box-shadow:0 0 0 .28em rgba(216,195,165,.14); }
+  /* 主題標題本身是反白色塊：按鈕若用固定色，會與該色塊同色而只剩圓框。
+     改為繼承標題前景色，深淺主題都自動可見。 */
+  #brief h2 .tts-btn { color:inherit; border-color:currentColor; opacity:.75; }
+  #brief h2 .tts-btn:hover { opacity:1; background:rgba(255,255,255,.2); border-color:currentColor; }
+  /* 正在朗讀的段落（h2 另行處理，見下） */
+  #brief .tts-now:not(h2) { background:rgba(0,64,48,.09); border-radius:.25em; box-shadow:0 0 0 .28em rgba(0,64,48,.09); }
+  .dark #brief .tts-now:not(h2) { background:rgba(216,195,165,.14); box-shadow:0 0 0 .28em rgba(216,195,165,.14); }
+  /* h2 已是深色塊，覆蓋背景會讓文字看不見——改用外框標示 */
+  #brief h2.tts-now { box-shadow:0 0 0 3px var(--gold), 0 0 0 6px rgba(0,64,48,.25); }
+  .dark #brief h2.tts-now { box-shadow:0 0 0 3px var(--green), 0 0 0 6px rgba(216,195,165,.3); }
   /* 迷你播放器：固定於底部，不影響既有版面（僅在播放時以 body class 補上底部留白） */
   #ttsPlayer { position:fixed; left:0; right:0; bottom:0; z-index:45; padding:.5rem .75rem;
                background:#fff; border-top:1px solid var(--line); box-shadow:0 -6px 20px rgba(0,0,0,.12); }
@@ -252,6 +259,7 @@
         <button id="ttsBtn" type="button" class="p-2 hover:bg-white/10 rounded-lg" title="語音導覽" aria-haspopup="true" aria-expanded="false">▶</button>
         <div class="dpick-menu" id="ttsMenu" hidden></div>
       </div>
+      <button id="ttsStopBtn" class="p-2 hover:bg-white/10 rounded-lg" title="停止（下次從頭開始）" hidden>⏹</button>
       <button id="themeBtn" class="p-2 hover:bg-white/10 rounded-lg" title="切換深淺色">◐</button>
     </div>
   </div>
@@ -582,6 +590,9 @@
       curEl = el || null;
       if (!curEl) return;
       curEl.classList.add('tts-now');
+      // 「本日重點」等中繼資料在預設收合的產製說明區內；不展開就捲不到、也看不到
+      var det = curEl.closest('details');
+      if (det && !det.open) det.open = true;
       // 捲到「上三分之一」而非正中央：讀者可同時看到接下來的內容
       var top = window.pageYOffset + curEl.getBoundingClientRect().top;
       var headroom = 56 + (document.getElementById('topicNav') ? document.getElementById('topicNav').offsetHeight : 0) + 16;
@@ -636,7 +647,7 @@
       });
       if (segs.length < 2) return;
       idx = 0; playing = true; paused = false;
-      setBtn(btn, true); ui(true); speakCurrent();
+      setBtn(btn, true); ui(true); fire(); speakCurrent();
       // Chrome 有時會自行停住，定期 resume 是公認的解法
       watchdog = setInterval(function(){
         if (playing && !paused) synth.resume();
@@ -648,8 +659,11 @@
       if (watchdog) { clearInterval(watchdog); watchdog = null; }
       try { synth.cancel(); } catch(e){}
       highlight(null); setBtn(curBtn, false); ui(false);
-      segs = []; idx = 0;
+      segs = []; idx = 0; fire();
     }
+    // 任何來源啟動的播放，頁首控制項都要跟著變——狀態集中通知，不各自為政
+    var onChange = null;
+    function fire(){ if (onChange) onChange({ playing:playing, paused:paused }); }
     // 自行追蹤暫停狀態：synth.paused 在各瀏覽器行為不一致，不足採信
     var paused = false;
     function toggle(){
@@ -657,6 +671,7 @@
       paused = !paused;
       if (paused) synth.pause(); else synth.resume();
       document.getElementById('tpToggle').textContent = paused ? '▶' : '⏸';
+      fire();
     }
     function setRate(r){
       rate = parseFloat(r) || 1;
@@ -714,7 +729,8 @@
     if (supported && synth.onvoiceschanged !== undefined) synth.onvoiceschanged = pickVoice;
     return { supported:supported, digest:digest, all:all, section:section, card:card,
              stop:stop, toggle:toggle, setRate:setRate, rate:function(){ return rate; },
-             playing:function(){ return playing; },
+             playing:function(){ return playing; }, paused:function(){ return paused; },
+             onChange:function(cb){ onChange = cb; },
              estimate:function(mode){ return minutesOf(mode === 'all' ? buildAll() : buildDigest()); },
              voices:function(){ pickVoice(); return { zh: vZh && vZh.name, en: vEn && vEn.name }; } };
   })();
@@ -891,11 +907,21 @@
       tip.textContent = '單則朗讀：點各則標題旁的 ▶';
       menu.appendChild(tip);
     }
+    var stopBtn = document.getElementById('ttsStopBtn');
+    // 播放中：頁首鍵＝暫停／繼續；閒置：頁首鍵＝開啟模式選單
     btn.addEventListener('click', function(e){
       e.stopPropagation();
-      if (TTS.playing()) { TTS.stop(); setOpen(false); return; }   // 播放中＝停止鍵
+      if (TTS.playing()) { TTS.toggle(); return; }
       if (pick.dataset.open === '1') { setOpen(false); return; }
       buildMenu(); setOpen(true);
+    });
+    stopBtn.addEventListener('click', function(e){ e.stopPropagation(); TTS.stop(); });
+    // 不論由頁首、主題或單則按鈕啟動，頁首控制項一律反映真實狀態
+    TTS.onChange(function(st){
+      btn.textContent = st.playing ? (st.paused ? '▶' : '⏸') : '▶';
+      btn.title = st.playing ? (st.paused ? '繼續朗讀' : '暫停朗讀') : '語音導覽';
+      stopBtn.hidden = !st.playing;
+      if (st.playing) setOpen(false);
     });
     document.addEventListener('click', function(e){ if (!pick.contains(e.target)) setOpen(false); });
     document.addEventListener('keydown', function(e){ if (e.key === 'Escape') setOpen(false); });
