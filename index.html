@@ -58,12 +58,13 @@
   .dark #brief td { border-color:#2a3d35; }
   .tbl-wrap { overflow-x:auto; }
   #brief hr { border:0; border-top:1px dashed var(--line); margin:1.5rem 0; }
-  /* Emphasis is deliberately restrained: issues up to 2026-08-07 drifted to ~50%
-     bold, where full-weight 700 turns the page into a wall. Colour carries the
-     emphasis; weight stays close to body text so dense bolding stays readable.
-     The upstream fix (an 8% cap in the brief SOP) applies to later issues. */
-  #brief strong { color:var(--green); font-weight:600; }
-  .dark #brief strong { color:var(--gold); font-weight:600; }
+  /* Default: real bold, for issues written under the SOP's 8% emphasis cap. */
+  #brief strong { color:var(--green); }
+  .dark #brief strong { color:var(--gold); }
+  /* Legacy issues (see DENSE_EMPHASIS_UNTIL): ~50% of the text is bold, so weight
+     is dropped to normal and colour alone carries the emphasis. 400 is the only
+     value that actually changes CJK rendering -- 500-600 snap up to Bold. */
+  #brief.dense-emphasis strong { font-weight:400; }
 
   /* Date picker: a native <select> cannot collapse groups, and a flat list of
      every issue ever published stops scaling once the archive spans months.
@@ -397,8 +398,18 @@
   }, {passive:true});
 
   // ---------- 載入 ----------
+  // Issues up to 2026-08-07 drifted to ~50% bold (2.8% on 07-28, compounding daily
+  // because each brief used yesterday's as its style reference). At that density
+  // real bold is a wall of ink, so those issues render their emphasis in colour at
+  // normal weight. Note: weight 600 does NOT help -- the CJK fallback face has only
+  // Regular and Bold, so anything above 500 snaps to Bold and looks identical.
+  // Issues from 08-08 on are written under an 8% cap in the brief SOP and keep
+  // genuine bold, which is meaningful again at that density.
+  var DENSE_EMPHASIS_UNTIL = '20260807';
   function loadBrief(file){
     var el = document.getElementById('brief');
+    var stamp = (file.match(/(\d{8})/) || [])[1] || '';
+    el.classList.toggle('dense-emphasis', stamp !== '' && stamp <= DENSE_EMPHASIS_UNTIL);
     el.innerHTML = '<p class="opacity-60 py-10 text-center">載入中…</p>';
     fetch('briefs/' + file, {cache:'no-cache'}).then(function(r){
       if (!r.ok) throw new Error('HTTP ' + r.status);
