@@ -58,26 +58,14 @@
   .dark #brief td { border-color:#2a3d35; }
   .tbl-wrap { overflow-x:auto; }
   #brief hr { border:0; border-top:1px dashed var(--line); margin:1.5rem 0; }
-  /* Default: real bold. Applies whenever emphasis is sparse enough to mean
-     something -- the 07-31 issue (13.8% bold) reads well this way, as do issues
-     written under the SOP's 8% cap. */
+  /* Emphasis is always rendered as real bold -- see EMPHASIS_BUDGET for how much
+     of a document is allowed to carry it. Restyling dense emphasis (lighter
+     weight, tint) was the wrong lever: it repainted the same 63% of the text
+     instead of reducing how much was painted. */
   #brief strong { color:var(--green); }
   .dark #brief strong { color:var(--gold); }
-  /* Dense issues (see DENSE_RATIO): bold weight is dropped, but colour alone
-     cannot carry emphasis here -- measured contrast between the emphasis colour
-     and body text is only 1.24 in light mode (1.39 in dark), i.e. invisible. A
-     faint tint restores a visible "marked" feel without adding ink weight.
-     Weight must be 400: the CJK fallback face has only Regular and Bold, so
-     500-600 snap straight back to Bold. */
-  /* Alphas differ per theme so both land at ~1.37 contrast against the card:
-     light .17 -> 1.37, dark .15 -> 1.40. Matching the numbers, not the alphas,
-     is what makes the two themes feel equally marked. */
-  #brief.dense-emphasis strong { font-weight:400; background:rgba(0,64,48,.17);
-    border-radius:.18em; padding:0 .16em; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
-  .dark #brief.dense-emphasis strong { background:rgba(216,195,165,.15); }
-  /* headings already carry their own weight/colour -- no tint inside them */
-  #brief.dense-emphasis h1 strong, #brief.dense-emphasis h2 strong,
-  #brief.dense-emphasis h3 strong, #brief.dense-emphasis h4 strong { background:none; padding:0; }
+  /* Runs demoted by the budget read as ordinary body text. */
+  #brief strong.de-emphasised, #brief b.de-emphasised { font-weight:400; color:inherit; }
 
   /* Date picker: a native <select> cannot collapse groups, and a flat list of
      every issue ever published stops scaling once the archive spans months.
@@ -411,26 +399,50 @@
   }, {passive:true});
 
   // ---------- 載入 ----------
-  // How much of an issue is emphasised decides how emphasis is rendered. Measured
-  // from the document itself rather than its date, so it stays correct for any
-  // issue -- past, future, or one that drifts again.
-  // Measured on the RENDERED text (higher than the markdown source ratio, which
-  // is diluted by "**", table pipes and link targets). Calibration across the
-  // archive: 07-28 4.3%, 07-29 12.5%, 07-30 14.5%, 07-31 19.4%, 08-01 26.2%,
-  // 08-03 48.0%, 08-07 63.3%. 07-31 is the reference for emphasis that still
-  // means something, so the threshold sits just above it and below 08-01, where
-  // the drift starts to hurt. Issues under the SOP's 8% source cap land ~12%
-  // here, comfortably in full-bold territory.
-  var DENSE_RATIO = 0.22;
+  // An issue may emphasise at most this share of its rendered characters. 07-31
+  // (19.4%) is the reference for emphasis that still reads as emphasis, so the
+  // budget sits at its level; issues under the SOP's 8% source cap land ~12%
+  // here and are never touched.
+  //
+  // When a document is over budget, the runs that get demoted are the LONG ones.
+  // That is where the drift lives: median run length is 9 characters on 07-31 but
+  // 29 on 08-07, whose longest single bold run is 220 characters -- entire
+  // paragraphs set in bold. Short runs are keywords, figures and dates and carry
+  // real information; long runs are whole sentences and are what turns a page
+  // into a wall. So we keep every run up to the longest length the budget can
+  // afford, and demote the rest.
+  var EMPHASIS_BUDGET = 0.20;
   function applyEmphasisMode(el){
+    var runs = Array.prototype.slice.call(el.querySelectorAll('strong, b'));
     var total = el.textContent.replace(/\s/g, '').length;
-    var bold = 0;
-    Array.prototype.forEach.call(el.querySelectorAll('strong, b'), function(s){
-      bold += s.textContent.replace(/\s/g, '').length;
+    runs.forEach(function(s){ s.classList.remove('de-emphasised'); });
+    if (!total || !runs.length) return;
+
+    var lens = runs.map(function(s){ return s.textContent.replace(/\s/g, '').length; });
+    var marked = lens.reduce(function(a, c){ return a + c; }, 0);
+    el.dataset.boldRatio = (marked / total * 100).toFixed(1);
+    delete el.dataset.emphasisLimit;                    // never carry the previous issue's numbers over
+    delete el.dataset.boldRatioKept;
+    if (marked <= total * EMPHASIS_BUDGET) return;      // already sparse enough
+
+    // largest run length whose whole cohort still fits the budget
+    var budget = total * EMPHASIS_BUDGET;
+    var sizes = lens.slice().sort(function(a, b){ return a - b; });
+    var distinct = sizes.filter(function(v, i){ return i === 0 || v !== sizes[i - 1]; });
+    var limit = 0;
+    for (var i = 0; i < distinct.length; i++) {
+      var sum = 0;
+      for (var j = 0; j < sizes.length && sizes[j] <= distinct[i]; j++) sum += sizes[j];
+      if (sum > budget) break;
+      limit = distinct[i];
+    }
+
+    var kept = 0;
+    runs.forEach(function(s, k){
+      if (lens[k] > limit) s.classList.add('de-emphasised'); else kept += lens[k];
     });
-    var ratio = total ? bold / total : 0;
-    el.classList.toggle('dense-emphasis', ratio > DENSE_RATIO);
-    el.dataset.boldRatio = (ratio * 100).toFixed(1);
+    el.dataset.emphasisLimit = limit;
+    el.dataset.boldRatioKept = (kept / total * 100).toFixed(1);
   }
   function loadBrief(file){
     var el = document.getElementById('brief');

@@ -5,7 +5,7 @@
 // read briefs when offline. Content updates therefore need NO cache bump;
 // only bump CACHE_NAME when shell files below change.
 
-const CACHE_NAME = 'brief-shell-v7';
+const CACHE_NAME = 'brief-shell-v8';
 const APP_SHELL = [
   './',
   './index.html',
