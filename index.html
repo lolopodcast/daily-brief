@@ -129,6 +129,10 @@
   #ttsPlayer .tp-rate { flex:0 0 auto; font-size:.75rem; padding:.25rem .3rem; border-radius:.4rem;
                         border:1px solid var(--line); background:transparent; color:inherit; }
   .dark #ttsPlayer .tp-rate { border-color:#2a3d35; background:#16211d; }
+  .tts-hint { display:block; font-size:.7rem; opacity:.6; font-weight:400; margin-top:.12rem; }
+  .tts-tip { padding:.35rem .55rem .15rem; border-top:1px solid var(--line); margin-top:.25rem; }
+  .dark .tts-tip { border-top-color:#2a3d35; }
+  #ttsMenu .dpick-item { line-height:1.35; padding:.5rem .55rem; }
   body.tts-on { padding-bottom:3.6rem; }
   @media (max-width:420px){ #ttsPlayer .tp-label { font-size:.72rem; } #ttsPlayer .tp-count { display:none; } }
   .badge { display:inline-block; padding:.1rem .55rem; border-radius:999px; font-size:.72rem; font-weight:700; vertical-align:.08rem; margin:0 .18rem 0 0; white-space:nowrap; }
@@ -244,7 +248,10 @@
         </button>
         <div class="dpick-menu" hidden></div>
       </div>
-      <button id="ttsBtn" class="p-2 hover:bg-white/10 rounded-lg" title="播放本期重點（約 6 分鐘）">▶</button>
+      <div id="ttsPick" class="dpick" data-open="0">
+        <button id="ttsBtn" type="button" class="p-2 hover:bg-white/10 rounded-lg" title="語音導覽" aria-haspopup="true" aria-expanded="false">▶</button>
+        <div class="dpick-menu" id="ttsMenu" hidden></div>
+      </div>
       <button id="themeBtn" class="p-2 hover:bg-white/10 rounded-lg" title="切換深淺色">◐</button>
     </div>
   </div>
@@ -278,8 +285,8 @@
     <select class="tp-rate" id="tpRate" title="語速" aria-label="語速">
       <option value="0.8">0.8×</option>
       <option value="1" selected>1.0×</option>
-      <option value="1.2">1.2×</option>
       <option value="1.5">1.5×</option>
+      <option value="2">2.0×</option>
     </select>
   </div>
 </div>
@@ -486,9 +493,28 @@
     // 裝飾性徽章與表格不唸；但「待查核」是警語，必須保留。
     var SKIP = '.tts-btn, .badge-domain, .badge-new, .badge-update, table, .tbl-wrap, script, style';
 
+    // 偏好鏈：中文優先 TW-Yating，英文優先英式男聲；找不到就逐級退回，
+    // 因為讀者機器上裝了哪些語音不由我們決定。
+    var vZh = null, vEn = null;
     function pickVoice(){
-      var vs = (synth.getVoices() || []).filter(function(v){ return /^zh/i.test(v.lang); });
-      voice = vs.filter(function(v){ return /zh[-_]TW/i.test(v.lang); })[0] || vs[0] || null;
+      var all = synth.getVoices() || [];
+      var zhs = all.filter(function(v){ return /^zh/i.test(v.lang); });
+      vZh = zhs.filter(function(v){ return /yating/i.test(v.name); })[0]
+         || zhs.filter(function(v){ return /zh[-_](TW|Hant)/i.test(v.lang); })[0]
+         || zhs[0] || null;
+      var ens = all.filter(function(v){ return /^en/i.test(v.lang); });
+      var gb  = ens.filter(function(v){ return /en[-_]GB/i.test(v.lang); });
+      vEn = gb.filter(function(v){ return /(george|ryan|thomas|daniel|arthur|oliver|male)/i.test(v.name); })[0]
+         || gb[0]
+         || ens.filter(function(v){ return /(male|david|mark|guy|alex)/i.test(v.name); })[0]
+         || ens[0] || null;
+      voice = vZh;
+    }
+    // 以字元組成判斷該段用哪個語音（本刊為中文夾雜英文術語，整段英文才切換）
+    function langOf(t){
+      var latin = (t.match(/[A-Za-z]/g) || []).length;
+      var han   = (t.match(/[一-鿿]/g) || []).length;
+      return (latin > 12 && latin > han * 2) ? 'en' : 'zh';
     }
 
     // 正規化：日期、網址、表情符號等直接朗讀會很難聽
@@ -551,13 +577,15 @@
       if (btn) { btn.textContent = on ? '⏹' : '▶'; btn.setAttribute('aria-pressed', on ? 'true' : 'false'); }
     }
     function highlight(el){
+      if (curEl === el) return;                       // 同一段落的後續句段不重捲，避免畫面抖動
       if (curEl) curEl.classList.remove('tts-now');
       curEl = el || null;
-      if (curEl) {
-        curEl.classList.add('tts-now');
-        var r = curEl.getBoundingClientRect();
-        if (r.top < 70 || r.bottom > window.innerHeight - 80) curEl.scrollIntoView({behavior:'smooth', block:'center'});
-      }
+      if (!curEl) return;
+      curEl.classList.add('tts-now');
+      // 捲到「上三分之一」而非正中央：讀者可同時看到接下來的內容
+      var top = window.pageYOffset + curEl.getBoundingClientRect().top;
+      var headroom = 56 + (document.getElementById('topicNav') ? document.getElementById('topicNav').offsetHeight : 0) + 16;
+      window.scrollTo({ top: Math.max(0, top - headroom - window.innerHeight * 0.12), behavior:'smooth' });
     }
     function ui(on){
       var p = document.getElementById('ttsPlayer');
@@ -575,17 +603,26 @@
       document.getElementById('tpCount').textContent = (idx + 1) + ' / ' + segs.length;
     }
 
+    // 我們自己呼叫 cancel() 時，瀏覽器仍會觸發當前語句的 onend；若不抑制，
+    // 佇列會跳號並重複發聲（語速切換因此形同無效）。
+    var suppress = false;
     function speakCurrent(){
       if (!playing || idx >= segs.length) { if (playing) stop(); return; }
       var s = segs[idx];
       label(); highlight(s.el);
       var u = new SpeechSynthesisUtterance(s.text);
-      if (voice) u.voice = voice;
-      u.lang = (voice && voice.lang) || 'zh-TW';
+      var v = (langOf(s.text) === 'en' && vEn) ? vEn : vZh;
+      if (v) u.voice = v;
+      u.lang = (v && v.lang) || 'zh-TW';
       u.rate = rate;
-      u.onend = function(){ if (!playing) return; idx++; speakCurrent(); };
-      u.onerror = function(){ if (!playing) return; idx++; speakCurrent(); };
+      u.onend = function(){ if (!playing || suppress) return; idx++; speakCurrent(); };
+      u.onerror = function(){ if (!playing || suppress) return; idx++; speakCurrent(); };
       synth.speak(u);
+    }
+    function recite(){                       // 以新設定重播「當前」句段，不推進索引
+      suppress = true;
+      try { synth.cancel(); } catch(e){}
+      setTimeout(function(){ suppress = false; if (playing) speakCurrent(); }, 60);
     }
 
     function start(items, btn){
@@ -624,11 +661,11 @@
     function setRate(r){
       rate = parseFloat(r) || 1;
       localStorage.setItem('brief_tts_rate', String(rate));
-      if (playing) { try { synth.cancel(); } catch(e){} speakCurrent(); }  // 立即以新語速重播目前句段
+      if (playing) recite();                 // 立即以新語速重播當前句段
     }
 
     // --- 三種播放範圍 ---
-    function digest(btn){
+    function buildDigest(){
       var el = document.getElementById('brief');
       var items = [];
       var lis = Array.prototype.slice.call(el.querySelectorAll('li'));
@@ -638,7 +675,27 @@
         if (h.closest('details')) return;            // 尊重摺疊：決策節不進入重點版
         items.push({ el:h, label:textOf(h).slice(0,40), text:textOf(h) });
       });
-      start(items, btn);
+      return items;
+    }
+    function buildAll(){
+      var el = document.getElementById('brief'), items = [];
+      Array.prototype.slice.call(el.querySelectorAll('h2')).forEach(function(h2){
+        if (h2.closest('details')) return;           // 摺疊的決策節維持自己的播放鍵
+        items.push({ el:h2, label:textOf(h2).slice(0,30), text:textOf(h2) });
+        var lab = textOf(h2).slice(0,30), n = h2.nextElementSibling;
+        while (n && n.tagName !== 'H2') {
+          if (!n.matches('.tbl-wrap, table, details')) items.push({ el:n, label:lab, text:textOf(n) });
+          n = n.nextElementSibling;
+        }
+      });
+      return items;
+    }
+    function digest(btn){ start(buildDigest(), btn); }
+    function all(btn){ start(buildAll(), btn); }
+    // 供選單顯示預估時長（依目前語速）
+    function minutesOf(items){
+      var chars = items.reduce(function(a, it){ return a + (it.text ? it.text.length : 0); }, 0);
+      return Math.max(1, Math.round(chars / 4.5 / rate / 60));
     }
     function section(h2, btn){
       var items = [], n = h2.nextElementSibling;
@@ -655,8 +712,11 @@
     }
 
     if (supported && synth.onvoiceschanged !== undefined) synth.onvoiceschanged = pickVoice;
-    return { supported:supported, digest:digest, section:section, card:card,
-             stop:stop, toggle:toggle, setRate:setRate, rate:function(){ return rate; } };
+    return { supported:supported, digest:digest, all:all, section:section, card:card,
+             stop:stop, toggle:toggle, setRate:setRate, rate:function(){ return rate; },
+             playing:function(){ return playing; },
+             estimate:function(mode){ return minutesOf(mode === 'all' ? buildAll() : buildDigest()); },
+             voices:function(){ pickVoice(); return { zh: vZh && vZh.name, en: vEn && vEn.name }; } };
   })();
 
   // An issue may emphasise at most this share of its rendered characters. 07-31
@@ -802,11 +862,43 @@
 
   // ---------- 語音導覽：控制項綁定 ----------
   (function(){
-    var btn = document.getElementById('ttsBtn');
-    if (!TTS.supported) { btn.hidden = true; return; }   // 不支援就整組隱藏，其餘功能不受影響
-    btn.addEventListener('click', function(){
-      if (btn.getAttribute('aria-pressed') === 'true') TTS.stop(); else TTS.digest(btn);
+    var pick = document.getElementById('ttsPick');
+    var btn  = document.getElementById('ttsBtn');
+    var menu = document.getElementById('ttsMenu');
+    if (!TTS.supported) { pick.hidden = true; return; }  // 不支援就整組隱藏，其餘功能不受影響
+
+    function setOpen(o){
+      pick.dataset.open = o ? '1' : '0';
+      menu.hidden = !o;
+      btn.setAttribute('aria-expanded', o ? 'true' : 'false');
+    }
+    var MODES = [
+      { key:'digest', name:'本期重點整理', hint:'開頭重點＋各則標題' },
+      { key:'all',    name:'各主題詳讀',   hint:'全部主題依序朗讀，可隨時停止' }
+    ];
+    function buildMenu(){
+      menu.innerHTML = '';
+      MODES.forEach(function(m){
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'dpick-item';
+        b.innerHTML = '▶ ' + m.name + '<span class="dpick-count"> 約 ' + TTS.estimate(m.key) + ' 分</span>' +
+                      '<br><span class="tts-hint">' + m.hint + '</span>';
+        b.addEventListener('click', function(){ setOpen(false); TTS[m.key](btn); });
+        menu.appendChild(b);
+      });
+      var tip = document.createElement('div');
+      tip.className = 'tts-hint tts-tip';
+      tip.textContent = '單則朗讀：點各則標題旁的 ▶';
+      menu.appendChild(tip);
+    }
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (TTS.playing()) { TTS.stop(); setOpen(false); return; }   // 播放中＝停止鍵
+      if (pick.dataset.open === '1') { setOpen(false); return; }
+      buildMenu(); setOpen(true);
     });
+    document.addEventListener('click', function(e){ if (!pick.contains(e.target)) setOpen(false); });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') setOpen(false); });
     document.getElementById('tpToggle').addEventListener('click', TTS.toggle);
     document.getElementById('tpStop').addEventListener('click', TTS.stop);
     var rateSel = document.getElementById('tpRate');
