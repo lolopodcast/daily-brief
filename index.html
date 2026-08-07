@@ -58,13 +58,26 @@
   .dark #brief td { border-color:#2a3d35; }
   .tbl-wrap { overflow-x:auto; }
   #brief hr { border:0; border-top:1px dashed var(--line); margin:1.5rem 0; }
-  /* Default: real bold, for issues written under the SOP's 8% emphasis cap. */
+  /* Default: real bold. Applies whenever emphasis is sparse enough to mean
+     something -- the 07-31 issue (13.8% bold) reads well this way, as do issues
+     written under the SOP's 8% cap. */
   #brief strong { color:var(--green); }
   .dark #brief strong { color:var(--gold); }
-  /* Legacy issues (see DENSE_EMPHASIS_UNTIL): ~50% of the text is bold, so weight
-     is dropped to normal and colour alone carries the emphasis. 400 is the only
-     value that actually changes CJK rendering -- 500-600 snap up to Bold. */
-  #brief.dense-emphasis strong { font-weight:400; }
+  /* Dense issues (see DENSE_RATIO): bold weight is dropped, but colour alone
+     cannot carry emphasis here -- measured contrast between the emphasis colour
+     and body text is only 1.24 in light mode (1.39 in dark), i.e. invisible. A
+     faint tint restores a visible "marked" feel without adding ink weight.
+     Weight must be 400: the CJK fallback face has only Regular and Bold, so
+     500-600 snap straight back to Bold. */
+  /* Alphas differ per theme so both land at ~1.37 contrast against the card:
+     light .17 -> 1.37, dark .15 -> 1.40. Matching the numbers, not the alphas,
+     is what makes the two themes feel equally marked. */
+  #brief.dense-emphasis strong { font-weight:400; background:rgba(0,64,48,.17);
+    border-radius:.18em; padding:0 .16em; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
+  .dark #brief.dense-emphasis strong { background:rgba(216,195,165,.15); }
+  /* headings already carry their own weight/colour -- no tint inside them */
+  #brief.dense-emphasis h1 strong, #brief.dense-emphasis h2 strong,
+  #brief.dense-emphasis h3 strong, #brief.dense-emphasis h4 strong { background:none; padding:0; }
 
   /* Date picker: a native <select> cannot collapse groups, and a flat list of
      every issue ever published stops scaling once the archive spans months.
@@ -398,24 +411,36 @@
   }, {passive:true});
 
   // ---------- 載入 ----------
-  // Issues up to 2026-08-07 drifted to ~50% bold (2.8% on 07-28, compounding daily
-  // because each brief used yesterday's as its style reference). At that density
-  // real bold is a wall of ink, so those issues render their emphasis in colour at
-  // normal weight. Note: weight 600 does NOT help -- the CJK fallback face has only
-  // Regular and Bold, so anything above 500 snaps to Bold and looks identical.
-  // Issues from 08-08 on are written under an 8% cap in the brief SOP and keep
-  // genuine bold, which is meaningful again at that density.
-  var DENSE_EMPHASIS_UNTIL = '20260807';
+  // How much of an issue is emphasised decides how emphasis is rendered. Measured
+  // from the document itself rather than its date, so it stays correct for any
+  // issue -- past, future, or one that drifts again.
+  // Measured on the RENDERED text (higher than the markdown source ratio, which
+  // is diluted by "**", table pipes and link targets). Calibration across the
+  // archive: 07-28 4.3%, 07-29 12.5%, 07-30 14.5%, 07-31 19.4%, 08-01 26.2%,
+  // 08-03 48.0%, 08-07 63.3%. 07-31 is the reference for emphasis that still
+  // means something, so the threshold sits just above it and below 08-01, where
+  // the drift starts to hurt. Issues under the SOP's 8% source cap land ~12%
+  // here, comfortably in full-bold territory.
+  var DENSE_RATIO = 0.22;
+  function applyEmphasisMode(el){
+    var total = el.textContent.replace(/\s/g, '').length;
+    var bold = 0;
+    Array.prototype.forEach.call(el.querySelectorAll('strong, b'), function(s){
+      bold += s.textContent.replace(/\s/g, '').length;
+    });
+    var ratio = total ? bold / total : 0;
+    el.classList.toggle('dense-emphasis', ratio > DENSE_RATIO);
+    el.dataset.boldRatio = (ratio * 100).toFixed(1);
+  }
   function loadBrief(file){
     var el = document.getElementById('brief');
-    var stamp = (file.match(/(\d{8})/) || [])[1] || '';
-    el.classList.toggle('dense-emphasis', stamp !== '' && stamp <= DENSE_EMPHASIS_UNTIL);
     el.innerHTML = '<p class="opacity-60 py-10 text-center">載入中…</p>';
     fetch('briefs/' + file, {cache:'no-cache'}).then(function(r){
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.text();
     }).then(function(md){
       el.innerHTML = DOMPurify.sanitize(marked.parse(md));
+      applyEmphasisMode(el);
       enhance(el);
       el.classList.remove('animate-fade-in'); void el.offsetWidth; el.classList.add('animate-fade-in');
       window.scrollTo({top:0});
