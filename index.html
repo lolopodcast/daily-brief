@@ -58,8 +58,12 @@
   .dark #brief td { border-color:#2a3d35; }
   .tbl-wrap { overflow-x:auto; }
   #brief hr { border:0; border-top:1px dashed var(--line); margin:1.5rem 0; }
-  #brief strong { color:var(--green); }
-  .dark #brief strong { color:var(--gold); }
+  /* Emphasis is deliberately restrained: issues up to 2026-08-07 drifted to ~50%
+     bold, where full-weight 700 turns the page into a wall. Colour carries the
+     emphasis; weight stays close to body text so dense bolding stays readable.
+     The upstream fix (an 8% cap in the brief SOP) applies to later issues. */
+  #brief strong { color:var(--green); font-weight:600; }
+  .dark #brief strong { color:var(--gold); font-weight:600; }
 
   .badge { display:inline-block; padding:.1rem .55rem; border-radius:999px; font-size:.72rem; font-weight:700; vertical-align:.08rem; margin:0 .18rem 0 0; white-space:nowrap; }
   .badge-verify { background:#f5e3c8; color:#8a5a00; border:1px solid #e2b96f; }
