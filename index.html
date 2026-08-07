@@ -65,6 +65,37 @@
   #brief strong { color:var(--green); font-weight:600; }
   .dark #brief strong { color:var(--gold); font-weight:600; }
 
+  /* Date picker: a native <select> cannot collapse groups, and a flat list of
+     every issue ever published stops scaling once the archive spans months.
+     Months are collapsible; the newest month opens by default. */
+  .dpick { position:relative; }
+  .dpick-btn { display:flex; align-items:center; gap:.35rem; background:rgba(255,255,255,.1); color:#fff;
+               font:inherit; font-size:.875rem; border:1px solid rgba(255,255,255,.2); border-radius:.5rem;
+               padding:.375rem .5rem; cursor:pointer; white-space:nowrap; }
+  .dpick-btn:hover { background:rgba(255,255,255,.18); }
+  .dpick-caret { font-size:.65rem; opacity:.85; transition:transform .15s; }
+  .dpick[data-open="1"] .dpick-caret { transform:rotate(180deg); }
+  .dpick-menu { position:absolute; right:0; top:calc(100% + .4rem); z-index:60; min-width:13rem;
+                max-height:min(70vh,26rem); overflow-y:auto; padding:.3rem;
+                background:#fff; color:#333; border:1px solid var(--line); border-radius:.6rem;
+                box-shadow:0 10px 30px rgba(0,0,0,.18); }
+  .dark .dpick-menu { background:#16211d; color:#e8e4dc; border-color:#2a3d35; }
+  .dpick-group { width:100%; display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+                 background:transparent; border:0; cursor:pointer; font:inherit; font-size:.82rem; font-weight:700;
+                 color:var(--green); padding:.45rem .55rem; border-radius:.4rem; text-align:left; }
+  .dark .dpick-group { color:var(--gold); }
+  .dpick-group:hover { background:rgba(0,64,48,.07); }
+  .dark .dpick-group:hover { background:rgba(216,195,165,.12); }
+  .dpick-arrow { display:inline-block; font-size:.6rem; opacity:.7; transition:transform .15s; margin-right:.3rem; }
+  .dpick-group[aria-expanded="true"] .dpick-arrow { transform:rotate(90deg); }
+  .dpick-count { font-weight:400; opacity:.55; font-size:.75rem; }
+  .dpick-sub { padding:.05rem 0 .3rem .55rem; }
+  .dpick-item { width:100%; text-align:left; background:transparent; border:0; cursor:pointer; font:inherit;
+                font-size:.84rem; padding:.4rem .55rem; border-radius:.4rem; color:inherit; }
+  .dpick-item:hover { background:rgba(0,64,48,.07); }
+  .dark .dpick-item:hover { background:rgba(216,195,165,.12); }
+  .dpick-item[aria-current="true"] { background:var(--green); color:#fff; font-weight:700; }
+  .dark .dpick-item[aria-current="true"] { background:var(--gold); color:#04231b; }
   .badge { display:inline-block; padding:.1rem .55rem; border-radius:999px; font-size:.72rem; font-weight:700; vertical-align:.08rem; margin:0 .18rem 0 0; white-space:nowrap; }
   .badge-verify { background:#f5e3c8; color:#8a5a00; border:1px solid #e2b96f; }
   .dark .badge-verify { background:#3d3020; color:#e2b96f; border-color:#8a5a00; }
@@ -172,7 +203,12 @@
       <span class="font-serif font-bold text-sm truncate">精選晨報 · LoLo's Daily Brief</span>
     </div>
     <div class="flex items-center gap-2 shrink-0">
-      <select id="datePick" class="bg-white/10 text-white text-sm rounded-lg px-2 py-1.5 border border-white/20"></select>
+      <div id="datePick" class="dpick" data-open="0">
+        <button type="button" class="dpick-btn" aria-haspopup="true" aria-expanded="false">
+          <span class="dpick-label">載入中…</span><span class="dpick-caret">▾</span>
+        </button>
+        <div class="dpick-menu" hidden></div>
+      </div>
       <button id="themeBtn" class="p-2 hover:bg-white/10 rounded-lg" title="切換深淺色">◐</button>
     </div>
   </div>
@@ -379,14 +415,78 @@
 
   fetch('briefs/manifest.json', {cache:'no-cache'}).then(function(r){ return r.json(); }).then(function(m){
     var briefs = m.briefs || [];
-    var sel = document.getElementById('datePick');
-    briefs.forEach(function(b, i){
-      var o = document.createElement('option'); o.value = b.file; o.textContent = b.date + (i === 0 ? '（最新）' : '');
-      sel.appendChild(o);
+    if (!briefs.length) {
+      document.getElementById('brief').innerHTML = '<p class="py-10 text-center opacity-60">尚無晨報。</p>';
+      return;
+    }
+    var pick = document.getElementById('datePick');
+    var btn  = pick.querySelector('.dpick-btn');
+    var lbl  = pick.querySelector('.dpick-label');
+    var menu = pick.querySelector('.dpick-menu');
+
+    // group by YYYY-MM, keeping the manifest's newest-first order
+    var months = [], byMonth = {};
+    briefs.forEach(function(b){
+      var key = b.date.slice(0, 7);
+      if (!byMonth[key]) { byMonth[key] = []; months.push(key); }
+      byMonth[key].push(b);
     });
-    sel.addEventListener('change', function(){ loadBrief(sel.value); });
-    if (briefs.length) loadBrief(briefs[0].file);
-    else document.getElementById('brief').innerHTML = '<p class="py-10 text-center opacity-60">尚無晨報。</p>';
+
+    function setOpen(open){
+      pick.dataset.open = open ? '1' : '0';
+      menu.hidden = !open;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    function select(b, isNewest){
+      lbl.textContent = b.date + (isNewest ? '（最新）' : '');
+      Array.prototype.forEach.call(menu.querySelectorAll('.dpick-item'), function(el){
+        el.setAttribute('aria-current', el.dataset.file === b.file ? 'true' : 'false');
+      });
+      loadBrief(b.file);
+    }
+
+    months.forEach(function(key, mi){
+      var group = document.createElement('button');
+      group.type = 'button';
+      group.className = 'dpick-group';
+      group.setAttribute('aria-expanded', mi === 0 ? 'true' : 'false');
+      group.innerHTML = '<span><span class="dpick-arrow">▶</span>' + key + '</span>' +
+                        '<span class="dpick-count">' + byMonth[key].length + ' 期</span>';
+
+      var sub = document.createElement('div');
+      sub.className = 'dpick-sub';
+      sub.hidden = (mi !== 0);              // only the newest month starts open
+
+      byMonth[key].forEach(function(b){
+        var isNewest = (b.file === briefs[0].file);
+        var item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'dpick-item';
+        item.dataset.file = b.file;
+        item.textContent = b.date + (isNewest ? '（最新）' : '');
+        item.addEventListener('click', function(){ select(b, isNewest); setOpen(false); });
+        sub.appendChild(item);
+      });
+
+      group.addEventListener('click', function(){
+        var nowOpen = group.getAttribute('aria-expanded') !== 'true';
+        group.setAttribute('aria-expanded', nowOpen ? 'true' : 'false');
+        sub.hidden = !nowOpen;
+      });
+
+      menu.appendChild(group);
+      menu.appendChild(sub);
+    });
+
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      setOpen(pick.dataset.open !== '1');
+    });
+    document.addEventListener('click', function(e){ if (!pick.contains(e.target)) setOpen(false); });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape') setOpen(false); });
+
+    select(briefs[0], true);
   }).catch(function(){
     document.getElementById('brief').innerHTML = '<p class="py-10 text-center">無法載入晨報清單。</p>';
   });
