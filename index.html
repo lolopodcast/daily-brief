@@ -617,8 +617,19 @@
     // 我們自己呼叫 cancel() 時，瀏覽器仍會觸發當前語句的 onend；若不抑制，
     // 佇列會跳號並重複發聲（語速切換因此形同無效）。
     var suppress = false;
+    // 播完後回到「本次朗讀範圍的起點」；null 代表整份晨報＝頁面頂端
+    var retAnchor = null;
+    function scrollBack(el){
+      var top = 0;
+      if (el && document.contains(el) && el.getBoundingClientRect().height > 0) {
+        var nav = document.getElementById('topicNav');
+        var headroom = 56 + (nav ? nav.offsetHeight : 0) + 12;
+        top = Math.max(0, window.pageYOffset + el.getBoundingClientRect().top - headroom);
+      }
+      window.scrollTo({ top: top, behavior:'smooth' });
+    }
     function speakCurrent(){
-      if (!playing || idx >= segs.length) { if (playing) stop(); return; }
+      if (!playing || idx >= segs.length) { if (playing) stop(true); return; }   // true＝自然播完
       var s = segs[idx];
       label(); highlight(s.el);
       var u = new SpeechSynthesisUtterance(s.text);
@@ -636,9 +647,10 @@
       setTimeout(function(){ suppress = false; if (playing) speakCurrent(); }, 60);
     }
 
-    function start(items, btn){
+    function start(items, btn, anchor){
       stop();
       if (!supported) return;
+      retAnchor = anchor || null;
       pickVoice();
       segs = [{ el:null, text:CAVEAT, label:'⚠️ 使用提醒' }];
       items.forEach(function(it){
@@ -654,12 +666,15 @@
       }, 8000);
     }
 
-    function stop(){
+    // finished=true 才回捲：手動按停止時讀者多半正在看某處，不該把畫面拉走
+    function stop(finished){
+      var anchor = retAnchor; retAnchor = null;
       playing = false; paused = false;
       if (watchdog) { clearInterval(watchdog); watchdog = null; }
       try { synth.cancel(); } catch(e){}
       highlight(null); setBtn(curBtn, false); ui(false);
       segs = []; idx = 0; fire();
+      if (finished === true) scrollBack(anchor);
     }
     // 任何來源啟動的播放，頁首控制項都要跟著變——狀態集中通知，不各自為政
     var onChange = null;
@@ -705,8 +720,8 @@
       });
       return items;
     }
-    function digest(btn){ start(buildDigest(), btn); }
-    function all(btn){ start(buildAll(), btn); }
+    function digest(btn){ start(buildDigest(), btn, null); }   // 範圍＝整份 → 頁面頂端
+    function all(btn){ start(buildAll(), btn, null); }
     // 供選單顯示預估時長（依目前語速）
     function minutesOf(items){
       var chars = items.reduce(function(a, it){ return a + (it.text ? it.text.length : 0); }, 0);
@@ -719,11 +734,11 @@
         if (!n.matches('.tbl-wrap, table')) items.push({ el:n, label:textOf(h2).slice(0,30), text:textOf(n) });
         n = n.nextElementSibling;
       }
-      start(items, btn);
+      start(items, btn, h2);                                   // 範圍＝該主題 → 回主題標題
     }
     function card(el, btn){
       var h3 = el.querySelector('h3');
-      start([{ el:el, label:h3 ? textOf(h3).slice(0,40) : '本則', text:textOf(el) }], btn);
+      start([{ el:el, label:h3 ? textOf(h3).slice(0,40) : '本則', text:textOf(el) }], btn, el);  // 回該則
     }
 
     if (supported && synth.onvoiceschanged !== undefined) synth.onvoiceschanged = pickVoice;
