@@ -6,7 +6,24 @@
 
 1. heartbeat 每日將 `Brief_YYYYMMDD.md` 寫入 `ReviewInbox\_reports\briefings\`（不自動發布）
 2. 使用者審閱後，雙擊本資料夾的 `publish-brief.cmd`（或對 Claude 說「發布晨報」）
-3. 腳本以確定性程式碼複製新晨報 → 重建 `briefs/manifest.json` → commit → push → Pages 自動部署
+3. 腳本以確定性程式碼複製新晨報 → 重建 `briefs/manifest.json` → commit → push → 建置 → 上線
+
+### 三個確認點（2026-08-16 補強，因為每一個都真的失敗過）
+
+腳本不以「指令有沒有報錯」判斷成敗，一律**比對產物**：
+
+| 環節 | 確認方式 | 失敗時的行為 |
+| :--- | :--- | :--- |
+| 推送 | **比對遠端 SHA 是否等於本機** | 自動重試一次；仍失敗則印「推送失敗，晨報沒有上線」並以退出碼 1 結束 |
+| 建置 | 輪詢建置狀態（最多 6 分鐘） | 卡在 building **或停在舊 commit** 都會重新觸發一次 |
+| 上線 | 回讀線上 `manifest.json` 是否含最新一期 | 未確認就印 `*** NOT CONFIRMED LIVE ***`，並說明重跑即可、內容不會遺失 |
+
+**推送失敗不會遺失任何東西**——commit 已在本機，網路恢復後重跑腳本會直接推送既有 commit。
+
+### 改這支腳本時的兩個地雷
+
+- **`$ErrorActionPreference` 的位置**：若在 push 之前設為 `Stop`，git 寫入標準錯誤會被當成終止錯誤，**後面整段驗證完全不會執行**（2026-08-16 就是這樣失敗的）。驗證區段之前必須先設回 `Continue`。
+- **含中文的 `.ps1` 必須存成 UTF-8 with BOM**：PowerShell 5.1 讀無 BOM 的檔案會當成 ANSI，中文變亂碼導致解析失敗。用 `[System.IO.File]::WriteAllText($p, $text, (New-Object System.Text.UTF8Encoding $true))` 寫回。
 
 ## 快取規則（與教材站不同！）
 
