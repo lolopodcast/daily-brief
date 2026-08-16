@@ -1,4 +1,4 @@
-# Daily Brief semi-automatic publisher.
+﻿# Daily Brief semi-automatic publisher.
 # Run AFTER reviewing the brief (double-click publish-brief.cmd or tell Claude).
 # Steps: copy new/changed Brief_*.md from ReviewInbox -> briefs/, regenerate
 # briefs/manifest.json, git commit + push (GitHub Pages auto-deploys).
@@ -34,9 +34,36 @@ $pending = git status --porcelain
 if (-not $pending) { Write-Host 'Nothing new to publish.'; exit 0 }
 $msg = 'Publish brief: ' + ($(if ($copied.Count) { $copied -join ', ' } else { 'manifest refresh' }))
 git -c user.name="Shihmin Lo" -c user.email="smlo@ncnu.edu.tw" commit -q -m $msg
-git push origin main
 $head = (git rev-parse HEAD).Substring(0,7)
-Write-Host ('Pushed ' + $head + '. Copied: ' + $copied.Count + ' file(s). Now verifying it actually goes live...')
+
+# git 把進度寫到 stderr，在 ErrorActionPreference=Stop 之下會被當成終止錯誤，
+# 讓後面整段驗證完全沒機會執行。2026-08-16 就是這樣：push 因網路暫時失敗，
+# 腳本當場中止，本機有 commit、遠端沒有，而畫面上看不出發生了什麼。
+$ErrorActionPreference = 'Continue'
+
+function Get-RemoteHead {
+    $r = git ls-remote origin main 2>$null
+    if ($r) { return ($r -split "`t")[0].Substring(0,7) }
+    return $null
+}
+
+# 推送是否成功，以「遠端 SHA 是否等於本機」為準，不看指令有沒有印錯誤——
+# 這與確認後標記是同一個原則：驗證產物，不驗證動作。
+$pushed = $false
+foreach ($attempt in 1..2) {
+    git push origin main 2>&1 | Out-Null
+    if ((Get-RemoteHead) -eq $head) { $pushed = $true; break }
+    if ($attempt -eq 1) { Write-Host '  推送未生效，10 秒後重試一次（多半是暫時性網路問題）...'; Start-Sleep -Seconds 10 }
+}
+if (-not $pushed) {
+    Write-Host ''
+    Write-Host '*** 推送失敗，晨報沒有上線 ***'
+    Write-Host ("   本機已有 commit $head，遠端仍停在 " + (Get-RemoteHead))
+    Write-Host '   內容不會遺失：網路恢復後再執行一次本腳本即可（會直接推送既有 commit）。'
+    Write-Host ''
+    exit 1
+}
+Write-Host ('已推送 ' + $head + '，複製 ' + $copied.Count + ' 個檔案。開始確認是否真的上線...')
 
 # 4) VERIFY the build reaches the public site -- never just assume.
 #    Observed three times (2026-07-30, 08-04, 08-07): the push succeeds but the
