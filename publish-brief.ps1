@@ -96,8 +96,13 @@ while (((Get-Date) - $started).TotalMinutes -lt 6) {
     if ($live -match [regex]::Escape($newest.Name)) { $liveOk = $true; break }
     Write-Host '  build done but live manifest still stale; waiting for CDN...'
   }
-  elseif (-not $retriggered -and $b.status -eq 'building' -and ((Get-Date) - $started).TotalMinutes -ge 2) {
-    Write-Host '  build stuck in "building" for 2+ min -> retriggering once'
+  # 需要重新觸發的有兩種情況，先前只處理了第一種：
+  #   (1) 卡在 building 太久
+  #   (2) 顯示 built 但停在舊 commit —— 代表這次推送根本沒觸發建置
+  elseif (-not $retriggered -and ((Get-Date) - $started).TotalMinutes -ge 1.5 -and
+          ($b.status -eq 'building' -or ($b.status -eq 'built' -and $b.commit -ne $head))) {
+    $why = if ($b.status -eq 'building') { '卡在 building' } else { "停在舊 commit $($b.commit)" }
+    Write-Host "  建置$why -> 重新觸發一次"
     try { gh api repos/lolopodcast/daily-brief/pages/builds -X POST 2>&1 | Out-Null } catch {}
     $retriggered = $true
   }
